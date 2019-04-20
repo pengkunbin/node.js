@@ -34,7 +34,27 @@ const getDetail = (id)=>{
         author: 'jizou'
     }]
 }
+
+const newBlog = (blogData)=>{
+    //title\content数据
+
+    return {
+        //新建博客建立在数据表中的id
+        id:3
+    }
+}
+
+const updateBlog = (id,updateData)=>{
+    return true
+}
+
+const delBlog = (id)=>{
+    return true
+}
 module.exports = {
     getList,
-    getDetail
+    getDetail,
+    newBlog,
+    updateBlog,
+    delBlog
 }
