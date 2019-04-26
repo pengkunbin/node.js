@@ -1,6 +1,14 @@
-const {getList,getDetail,newBlog,updataBlog,delBlog} = require('../controller/blog')
-const { SuccessModel,ErrorModel } = require('../moudle/resModel')
+const { getList, getDetail, newBlog, updataBlog, delBlog } = require('../controller/blog')
+const { SuccessModel, ErrorModel } = require('../moudle/resModel')
 
+
+//统一的登录验证函数
+
+const loginCheck = (req) => {
+    if (!req.session.username) {
+        return Promise.resolve(new ErrorModel('尚未登录'))
+    }
+}
 
 const handleBlogRouter = (req, res) => {
     const url = req.url;
@@ -13,8 +21,8 @@ const handleBlogRouter = (req, res) => {
         const keyword = req.query.keyword || ''
         // const listData = getList(author,keyword)
         // return new SuccessModel(listData)
-        const result = getList(author,keyword)
-        return result.then(listData=>{
+        const result = getList(author, keyword)
+        return result.then(listData => {
             return new SuccessModel(listData)
         })
     }
@@ -24,38 +32,52 @@ const handleBlogRouter = (req, res) => {
         // const data = getDetail(id);
         // return new SuccessModel(data)
         const result = getDetail(id)
-        return result.then(detailData=>{
+        return result.then(detailData => {
             return new SuccessModel(detailData)
         })
     }
 
     if (method === 'POST' && path === '/api/blog/new') {
+        const loginCheckResult = loginCheck(req)
+        if (loginCheckResult) {
+            return loginCheck
+        }
         const blogData = req.body;
         const result = newBlog(blogData)
-        return result.then(id=>{
+        return result.then(id => {
             return new SuccessModel(id)
         })
     }
 
     if (method === 'POST' && path === '/api/blog/update') {
+        const loginCheckResult = loginCheck(req)
+        if (loginCheckResult) {
+            return loginCheck
+        }
+
         //id就是更新博客的id
         const updateData = req.body;
         const result = updataBlog(updateData)
-        return result.then(data=>{
-            if(data){
+        return result.then(data => {
+            if (data) {
                 return new SuccessModel()
-            }else{
+            } else {
                 return new ErrorModel('更新博客失败')
             }
         })
     }
-    if(method === 'POST' && path === '/api/blog/delete'){
+    if (method === 'POST' && path === '/api/blog/delete') {
+        const loginCheckResult = loginCheck(req)
+        if (loginCheckResult) {
+            return loginCheck
+        }
+
         const delData = req.body;
         const result = delBlog(delData)
-        return result.then(data=>{
-            if(data){
+        return result.then(data => {
+            if (data) {
                 return new SuccessModel()
-            }else{
+            } else {
                 return new ErrorModel('删除博客失败')
             }
         })

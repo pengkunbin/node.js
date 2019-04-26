@@ -1,6 +1,10 @@
 const handleBlogRouter = require('./src/router/blog')
-const handleUserRouter = require('./src/router/user')
+const {get,set} = require('./src/db/redis')
+const {handleUserRouter,getCookieExpires} = require('./src/router/user')
 const querystring = require('querystring')
+//session 数据
+const SESSION_DATA = {}
+
 
 //用于处理post data 
 const getPostData = (req) => {
@@ -35,12 +39,66 @@ const getPostData = (req) => {
 
 const serverHandle = (req, res) => {
     res.setHeader('Content-type', 'application/json')
-
+    //解析path
     const url = req.url;
     req.path = url.split('?')[0]
+    //解析query
     req.query = querystring.parse(url.split('?')[1])
-    //在处理路由之前，首先执行解析
-    getPostData(req).then(postData => {
+    //解析cookie
+    req.cookie = {}
+    const cookieStr = req.headers.cookie || ''
+    cookieStr.split(';').forEach(item => {
+        if (!item) {
+            return
+        }
+        const arr = item.split('=')
+        const key = arr[0]
+        const val = arr[1]
+        req.cookie[key] = val
+    })
+    //解析session
+    // let needSetCookie = false
+    // let userId = req.cookie.userid
+    // if (userId) {
+    //     if (!SESSION_DATA[userId]) {
+    //         SESSION_DATA[userId] = {}
+    //     }
+    // } else {
+    //     needSetCookie = true
+    //     userId = `${Date.now()}_${Math.random()}`
+    //     SESSION_DATA[userId]={}
+    // }
+    // req.session = SESSION_DATA[userId]
+
+
+    //解析session 使用redis
+    let needSetCookie = false
+    let userId = req.cookie.userid
+    if(!userId){
+        needSetCookie = true
+        userId = `${Date.now()}_${Math.random()}`
+        //初始化 redis 中的 session的值
+        set(userId,{})
+    }
+    //获取session
+    req.sessionId = userId
+    get(req.sessionId).then(sessionData=>{
+        if(sessionData == null){
+            //初始化 redis 中的 session的值
+            set(req.sessionId,{})
+            //设置session
+            req.session = {}
+        }else{
+            //设置session
+            req.session = sessionData
+        }
+
+        //处理postData
+
+        getPostData(req)
+
+        //在处理路由之前，首先执行解析
+    }).then(postData => {
         req.body = postData
 
         //处理博客路由
@@ -51,6 +109,9 @@ const serverHandle = (req, res) => {
         const blogResult = handleBlogRouter(req, res)
         if (blogResult) {
             blogResult.then(blogData => {
+                if(needSetCookie){
+                    res.setHeader('Set-Cookie', `userId=${userId}; path=/;httpOnly;expires=${getCookieExpires()}`)
+                }
                 res.end(JSON.stringify(blogData))
             })
             return
@@ -62,8 +123,12 @@ const serverHandle = (req, res) => {
         //     res.end(JSON.stringify(userData))
         //     return
         // }
-        if(userResult){
-            userResult.then(userData=>{
+        console.log(userResult)
+        if (userResult) {
+            userResult.then(userData => {
+                if(needSetCookie){
+                    res.setHeader('Set-Cookie', `userId=${userId}; path=/;httpOnly;expires=${getCookieExpires()}`)
+                }
                 res.end(JSON.stringify(userData))
             })
             return
